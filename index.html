@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提出物・アンケート管理</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background:#f5f6f8;
+  padding:20px;
+}
+
+.container {
+  max-width:900px;
+  margin:auto;
+  background:#fff;
+  padding:24px;
+  border-radius:12px;
+}
+
+h2 { font-size:20px; margin-bottom:16px; }
+
+.login-box {
+  max-width:400px;
+  margin:200px auto;
+  background:#fff;
+  padding:12px 14px;
+  border-radius:10px;
+  text-align:center;
+}
+
+.login-box h3 {
+  margin-top:0;
+  margin-bottom:8px;
+}
+
+.login-box input {
+  width:50%;
+  padding:10px;
+  margin-bottom:6px;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+.login-box button {
+  width:50%;
+  padding:10px;
+  background:#3b82f6;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+}
+
+.hidden { display:none; }
+
+.logout {
+  text-align:right;
+  margin-bottom:10px;
+}
+
+.logout button {
+  background:#999;
+  color:#fff;
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+}
+
+.input-group {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+input {
+  padding:10px;
+  border:1px solid #ddd;
+  border-radius:6px;
+}
+
+.add-btn {
+  background:#3b82f6;
+  color:#fff;
+  border:none;
+  padding:10px 16px;
+  border-radius:20px;
+}
+
+.legend {
+  display:flex;
+  gap:6px;
+  font-size:10px;
+  margin-left:10px;
+}
+
+.legend span {
+  padding:4px 8px;
+  border-radius:20px;
+}
+
+.late { background:#ffe5e5; }
+.todayLabel { background:#ffd966; }
+.nearLabel { background:#fff6cc; }
+
+table {
+  width:100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding:12px;
+  border-bottom:1px solid #eee;
+  text-align:center;
+}
+
+.status-btn {
+  border:none;
+  border-radius:20px;
+  padding:6px 14px;
+}
+
+.unanswered { background:#fde7e7; color:#d33; }
+.answered { background:#e6f4ea; color:#2e7d32; }
+
+.expired { background:#ffe5e5; }
+.today { background:#ffd966; }
+.near { background:#fff6cc; }
+
+.delete-btn {
+  background:red;
+  color:#fff;
+}
+</style>
+</head>
+
+<body>
+
+<div id="loginBox" class="login-box">
+  <h3>パスワード入力</h3>
+  <input id="password" type="password">
+  <button id="loginBtn">ログイン</button>
+</div>
+
+<div id="app" class="container hidden">
+
+<div class="logout">
+  <button id="logoutBtn">ログアウト</button>
+</div>
+
+<h2>📊 提出物・アンケート管理</h2>
+
+<div class="input-group">
+  <input id="newSurveyName" placeholder="提出物・アンケート名">
+  <input type="date" id="newSurveyDeadline">
+  <button id="addButton" class="add-btn">追加</button>
+
+  <div class="legend">
+    <span class="late">期限切れ</span>
+    <span class="todayLabel">当日</span>
+    <span class="nearLabel">3日前</span>
+  </div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>名前</th>
+<th>締切</th>
+<th>飯嶋</th>
+<th>谷田</th>
+<th>本田</th>
+<th>徳石</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+</div>
+
+<script>
+const PASSWORD = "0101";
+
+if (localStorage.getItem("auth") === "ok") {
+  showApp();
+}
+
+document.getElementById("loginBtn").onclick = () => {
+  if (document.getElementById("password").value === PASSWORD) {
+    localStorage.setItem("auth","ok");
+    showApp();
+  } else {
+    alert("パスワードが違います");
+  }
+};
+
+function showApp(){
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("app").classList.remove("hidden");
+}
+
+document.getElementById("logoutBtn").onclick = () => {
+  localStorage.removeItem("auth");
+  location.reload();
+};
+
+// 🌟 新しいGoogleアカウントの設定値を完全反映しました！
+const firebaseConfig = {
+  apiKey: "AIzaSyAB3aaRRpT6tRuIMFzA7ujMgp-vllIKUvE",
+  authDomain: "submission-app-new.firebaseapp.com",
+  projectId: "submission-app-new",
+  storageBucket: "submission-app-new.firebasestorage.app",
+  messagingSenderId: "643681084313",
+  appId: "1:643681084313:web:97ef4cce157e186a6b2908"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ref = db.collection("surveys");
+
+function formatDate(d){
+  if(!d || d === "未設定") return "-";
+  const x = new Date(d.replace(/-/g, '/'));
+  if (isNaN(x.getTime())) return "-";
+  return `${x.getMonth()+1}/${x.getDate()}`;
+}
+
+function render(list){
+  const tbody=document.getElementById("tableBody");
+  tbody.innerHTML="";
+  const users=["iijima","tanida","honda","tokuishi"];
+  
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+  const activeSurveys = [];
+  const expiredSurveys = [];
+
+  list.forEach(item => {
+    if (!item.deadline || item.deadline === "未設定") {
+      expiredSurveys.push(item);
+      return;
+    }
+    const d = new Date(item.deadline.replace(/-/g, '/'));
+    const dTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    
+    if (dTime < today) {
+      expiredSurveys.push({ ...item, dTime });
+    } else {
+      activeSurveys.push({ ...item, dTime });
+    }
+  });
+
+  activeSurveys.sort((a, b) => a.dTime - b.dTime);
+  expiredSurveys.sort((a, b) => b.dTime - a.dTime);
+
+  const sortedList = [...activeSurveys, ...expiredSurveys];
+
+  sortedList.forEach(row=>{
+    let tr=document.createElement("tr");
+    
+    if (row.deadline && row.deadline !== "未設定") {
+      const dTime = row.dTime;
+      const diffDays = (dTime - today) / (1000 * 60 * 60 * 24);
+
+      if (dTime < today) tr.classList.add("expired");
+      else if (dTime === today) tr.classList.add("today");
+      else if (diffDays <= 3) tr.classList.add("near");
+    }
+
+    let html=`<td>${row.name}</td><td>${formatDate(row.deadline)}</td>`;
+
+    users.forEach(u=>{
+      const s=row.users?.[u];
+      html+=`
+      <td>
+        <button class="status-btn ${s?"answered":"unanswered"}"
+          data-id="${row.id}" data-user="${u}">
+          ${s?"実施":"未実施"}
+        </button>
+      </td>`;
+    });
+
+    html+=`<td><button class="delete-btn" data-id="${row.id}">削除</button></td>`;
+    tr.innerHTML=html;
+    tbody.appendChild(tr);
+  });
+}
+
+ref.onSnapshot(snap=>{
+  const list=[];
+  snap.forEach(doc=>list.push({id:doc.id,...doc.data()}));
+  render(list);
+});
+
+document.getElementById("addButton").onclick=async()=>{
+  const name=document.getElementById("newSurveyName").value.trim();
+  let deadline=document.getElementById("newSurveyDeadline").value;
+  if(!name) return;
+
+  if(!deadline) {
+    deadline = "未設定";
+  }
+
+  await ref.add({
+    name,
+    deadline,
+    users:{
+      iijima:false,
+      tanida:false,
+      honda:false,
+      tokuishi:false
+    }
+  });
+
+  document.getElementById("newSurveyName").value="";
+  document.getElementById("newSurveyDeadline").value="";
+};
+
+document.addEventListener("click", async(e)=>{
+
+  if(e.target.dataset.user){
+    const id=e.target.dataset.id;
+    const user=e.target.dataset.user;
+    const docRef=ref.doc(id);
+    const snap=await docRef.get();
+
+    await docRef.update({
+      [`users.${user}`]: !snap.data().users[user]
+    });
+  }
+
+  if(e.target.classList.contains("delete-btn")){
+    const id=e.target.dataset.id;
+    if(confirm("削除する？")){
+      await ref.doc(id).delete();
+    }
+  }
+});
+</script>
+
+</body>
+</html>
