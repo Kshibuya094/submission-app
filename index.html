@@ -9,10 +9,13 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <style>
+* { box-sizing: border-box; }
+
 body {
   font-family: 'Segoe UI', sans-serif;
   background:#f5f6f8;
   padding:20px;
+  margin:0;
 }
 
 .container {
@@ -27,9 +30,10 @@ h2 { font-size:20px; margin-bottom:16px; }
 
 .login-box {
   max-width:400px;
-  margin:200px auto;
+  width:90%;
+  margin:120px auto;
   background:#fff;
-  padding:12px 14px;
+  padding:20px 16px;
   border-radius:10px;
   text-align:center;
 }
@@ -40,15 +44,17 @@ h2 { font-size:20px; margin-bottom:16px; }
 }
 
 .login-box input {
-  width:50%;
+  width:100%;
+  max-width:260px;
   padding:10px;
-  margin-bottom:6px;
+  margin-bottom:10px;
   border-radius:6px;
   border:1px solid #ccc;
 }
 
 .login-box button {
-  width:50%;
+  width:100%;
+  max-width:260px;
   padding:10px;
   background:#3b82f6;
   color:#fff;
@@ -73,15 +79,21 @@ h2 { font-size:20px; margin-bottom:16px; }
 
 .input-group {
   display:flex;
+  flex-wrap: wrap;
   align-items:center;
   gap:10px;
   margin-bottom:10px;
+}
+
+.input-group input {
+  flex: 1 1 160px;
 }
 
 input {
   padding:10px;
   border:1px solid #ddd;
   border-radius:6px;
+  font-size:14px;
 }
 
 .add-btn {
@@ -90,26 +102,37 @@ input {
   border:none;
   padding:10px 16px;
   border-radius:20px;
+  flex: 0 0 auto;
 }
 
 .legend {
   display:flex;
+  flex-wrap: wrap;
   gap:6px;
   font-size:10px;
-  margin-left:10px;
+  margin-left:0;
 }
 
 .legend span {
   padding:4px 8px;
   border-radius:20px;
+  white-space: nowrap;
 }
 
 .late { background:#ffe5e5; }
 .todayLabel { background:#ffd966; }
 .nearLabel { background:#fff6cc; }
 
+/* テーブルを横スクロール可能なラッパーに入れる */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 table {
   width:100%;
+  min-width: 560px; /* これより狭くなったら横スクロール */
   border-collapse: collapse;
 }
 
@@ -117,12 +140,14 @@ th, td {
   padding:12px;
   border-bottom:1px solid #eee;
   text-align:center;
+  white-space: nowrap;
 }
 
 .status-btn {
   border:none;
   border-radius:20px;
   padding:6px 14px;
+  font-size: 13px;
 }
 
 .unanswered { background:#fde7e7; color:#d33; }
@@ -135,6 +160,55 @@ th, td {
 .delete-btn {
   background:red;
   color:#fff;
+  border:none;
+  border-radius:6px;
+  padding:6px 10px;
+}
+
+/* --- スマホ向け調整 --- */
+@media (max-width: 600px) {
+  body { padding: 10px; }
+
+  .container {
+    padding: 14px;
+    border-radius: 8px;
+  }
+
+  h2 { font-size: 18px; }
+
+  .login-box {
+    margin: 60px auto;
+    padding: 16px 12px;
+  }
+
+  .input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input-group input,
+  .add-btn {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .legend {
+    font-size: 11px;
+  }
+
+  table {
+    min-width: 500px;
+  }
+
+  th, td {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+
+  .status-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
 }
 </style>
 </head>
@@ -159,14 +233,17 @@ th, td {
   <input id="newSurveyName" placeholder="提出物・アンケート名">
   <input type="date" id="newSurveyDeadline">
   <button id="addButton" class="add-btn">追加</button>
-
-  <div class="legend">
-    <span class="late">期限切れ</span>
-    <span class="todayLabel">当日</span>
-    <span class="nearLabel">3日前</span>
-  </div>
 </div>
 
+<div class="legend">
+  <span class="late">期限切れ</span>
+  <span class="todayLabel">当日</span>
+  <span class="nearLabel">3日前</span>
+</div>
+
+<br>
+
+<div class="table-wrap">
 <table>
 <thead>
 <tr>
@@ -181,6 +258,7 @@ th, td {
 </thead>
 <tbody id="tableBody"></tbody>
 </table>
+</div>
 
 </div>
 
@@ -210,7 +288,6 @@ document.getElementById("logoutBtn").onclick = () => {
   location.reload();
 };
 
-// 🌟 新しいGoogleアカウントの設定値を完全反映しました！
 const firebaseConfig = {
   apiKey: "AIzaSyAB3aaRRpT6tRuIMFzA7ujMgp-vllIKUvE",
   authDomain: "submission-app-new.firebaseapp.com",
@@ -235,7 +312,7 @@ function render(list){
   const tbody=document.getElementById("tableBody");
   tbody.innerHTML="";
   const users=["iijima","tanida","honda","tokuishi"];
-  
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
@@ -249,7 +326,7 @@ function render(list){
     }
     const d = new Date(item.deadline.replace(/-/g, '/'));
     const dTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    
+
     if (dTime < today) {
       expiredSurveys.push({ ...item, dTime });
     } else {
@@ -264,7 +341,7 @@ function render(list){
 
   sortedList.forEach(row=>{
     let tr=document.createElement("tr");
-    
+
     if (row.deadline && row.deadline !== "未設定") {
       const dTime = row.dTime;
       const diffDays = (dTime - today) / (1000 * 60 * 60 * 24);
