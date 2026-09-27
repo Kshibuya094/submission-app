@@ -132,7 +132,7 @@ input {
 
 table {
   width:100%;
-  min-width: 560px; /* これより狭くなったら横スクロール */
+  min-width: 620px; /* これより狭くなったら横スクロール */
   border-collapse: collapse;
 }
 
@@ -197,7 +197,7 @@ th, td {
   }
 
   table {
-    min-width: 500px;
+    min-width: 560px;
   }
 
   th, td {
@@ -250,6 +250,7 @@ th, td {
 <th>名前</th>
 <th>締切</th>
 <th>飯嶋</th>
+<th>芦原</th>
 <th>谷田</th>
 <th>本田</th>
 <th>徳石</th>
@@ -311,7 +312,7 @@ function formatDate(d){
 function render(list){
   const tbody=document.getElementById("tableBody");
   tbody.innerHTML="";
-  const users=["iijima","tanida","honda","tokuishi"];
+  const users=["iijima","ashihara","tanida","honda","tokuishi"];
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -390,6 +391,7 @@ document.getElementById("addButton").onclick=async()=>{
     deadline,
     users:{
       iijima:false,
+      ashihara:false,
       tanida:false,
       honda:false,
       tokuishi:false
