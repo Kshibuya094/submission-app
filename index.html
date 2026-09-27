@@ -417,7 +417,13 @@ document.addEventListener("click", async(e)=>{
 
   if(e.target.classList.contains("delete-btn")){
     const id=e.target.dataset.id;
-    if(confirm("削除する？")){
+    const inputPw = prompt("削除するにはパスワードを入力してください");
+    if(inputPw === null) return; // キャンセル
+    if(inputPw !== PASSWORD){
+      alert("パスワードが違います。削除を中止しました。");
+      return;
+    }
+    if(confirm("本当に削除する？")){
       await ref.doc(id).delete();
     }
   }
